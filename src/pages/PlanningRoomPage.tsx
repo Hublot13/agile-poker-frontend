@@ -17,11 +17,14 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useSocket } from "../contexts/SocketContext";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { Room, RoomStats, User, DECKS } from "../types";
+import { useNotification } from "../contexts/NotficationContext";
 
 export const PlanningRoomPage: React.FC = () => {
   const { roomCode } = useParams();
   const navigate = useNavigate();
   const { socket } = useSocket();
+  const { notify } = useNotification();
+
   const [userSession] = useLocalStorage("poker-session", null);
 
   const [room, setRoom] = useState<Room | null>(null);
@@ -35,7 +38,6 @@ export const PlanningRoomPage: React.FC = () => {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
-  const [notifications, setNotifications] = useState<string[]>([]);
 
   useEffect(() => {
     if (room && currentUser) {
@@ -102,7 +104,7 @@ export const PlanningRoomPage: React.FC = () => {
 
     // Socket event listeners
     socket.on("user-joined", (data) => {
-      addNotification(
+      notify(
         `${data.user.name} ${
           data.isReconnection ? "reconnected" : "joined"
         } the room`
@@ -117,9 +119,9 @@ export const PlanningRoomPage: React.FC = () => {
     });
 
     socket.on("user-left", (data) => {
-      addNotification(`${data.userName} left the room`);
+      notify(`${data.userName} left the room`);
       if (data.newHost) {
-        addNotification(`${data.newHost} is now the host`);
+        notify(`${data.newHost} is now the host`);
       }
       setStats(data.stats);
       if (room) {
@@ -152,7 +154,7 @@ export const PlanningRoomPage: React.FC = () => {
     });
 
     socket.on("votes-revealed", (data) => {
-      addNotification("Votes have been revealed!");
+      notify("Votes have been revealed!");
       setRoom((prev) =>
         prev ? { ...prev, roundState: data.roundState } : null
       );
@@ -161,7 +163,7 @@ export const PlanningRoomPage: React.FC = () => {
     });
 
     socket.on("round-reset", (data) => {
-      addNotification("Round has been reset");
+      notify("Round has been reset");
       setRoom((prev) =>
         prev ? { ...prev, roundState: data.roundState } : null
       );
@@ -173,12 +175,12 @@ export const PlanningRoomPage: React.FC = () => {
     socket.on("room-updated", (updatedRoom) => {
       setRoom(updatedRoom);
       if (updatedRoom.newHostName) {
-        addNotification(`${updatedRoom.newHostName} is now the host`);
+        notify(`${updatedRoom.newHostName} is now the host`);
       }
     });
 
     socket.on("removed", () => {
-      addNotification("You were removed from the room");
+      notify("You were removed from the room");
       navigate("/");
     });
 
@@ -207,7 +209,7 @@ export const PlanningRoomPage: React.FC = () => {
         setUserVotes(response.stats.votes);
       }
       if (response.isReconnection) {
-        addNotification("Successfully reconnected to the room");
+        notify("Successfully reconnected to the room");
       }
     } else {
       setError(response.error);
@@ -225,13 +227,6 @@ export const PlanningRoomPage: React.FC = () => {
     }
   };
 
-  const addNotification = (message: string) => {
-    setNotifications((prev) => [...prev, message]);
-    setTimeout(() => {
-      setNotifications((prev) => prev.slice(1));
-    }, 3000);
-  };
-
   const handleVote = (vote: string | number) => {
     if (!socket || room?.roundState !== "voting") return;
 
@@ -239,7 +234,7 @@ export const PlanningRoomPage: React.FC = () => {
     socket.emit("cast-vote", { vote }, (response: any) => {
       if (!response.success) {
         setSelectedVote(null);
-        addNotification("Failed to cast vote");
+        notify("Failed to cast vote");
       }
     });
   };
@@ -248,9 +243,9 @@ export const PlanningRoomPage: React.FC = () => {
     if (!socket) return;
     socket.emit("start-voting", (response: any) => {
       if (!response.success) {
-        addNotification("Failed to start voting");
+        notify("Failed to start voting");
       } else {
-        addNotification("Voting Started");
+        notify("Voting Started");
         setStats(response.stats);
       }
     });
@@ -260,7 +255,7 @@ export const PlanningRoomPage: React.FC = () => {
     if (!socket) return;
     socket.emit("reveal-votes", (response: any) => {
       if (!response.success) {
-        addNotification("Failed to reveal votes");
+        notify("Failed to reveal votes");
       }
     });
   };
@@ -269,7 +264,7 @@ export const PlanningRoomPage: React.FC = () => {
     if (!socket) return;
     socket.emit("reset-round", (response: any) => {
       if (!response.success) {
-        addNotification("Failed to reset round");
+        notify("Failed to reset round");
       }
     });
     handleStartVoting();
@@ -280,7 +275,7 @@ export const PlanningRoomPage: React.FC = () => {
 
     socket.emit("make-host", { targetSocketId }, (response: any) => {
       if (!response.success) {
-        addNotification("Failed to make host");
+        notify("Failed to make host");
       }
     });
   };
@@ -290,7 +285,7 @@ export const PlanningRoomPage: React.FC = () => {
 
     socket.emit("remove-user", { targetSocketId }, (response: any) => {
       if (!response.success) {
-        addNotification("Failed to kick user");
+        notify("Failed to kick user");
       }
     });
   };
@@ -299,9 +294,9 @@ export const PlanningRoomPage: React.FC = () => {
     const link = `${window.location.origin}/join/${roomCode}`;
     try {
       await navigator.clipboard.writeText(link);
-      addNotification("Room link copied to clipboard!");
+      notify("Room link copied to clipboard!");
     } catch (error) {
-      addNotification("Failed to copy link");
+      notify("Failed to copy link");
     }
   };
 
@@ -343,18 +338,6 @@ export const PlanningRoomPage: React.FC = () => {
 
   return (
     <Layout>
-      {/* Notifications */}
-      <div className="fixed top-20 right-4 z-50 space-y-2">
-        {notifications.map((notification, index) => (
-          <div
-            key={index}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-slide-in-right"
-          >
-            {notification}
-          </div>
-        ))}
-      </div>
-
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
