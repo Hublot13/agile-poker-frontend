@@ -9,10 +9,19 @@ import { useSocket } from "../contexts/SocketContext";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { DECKS, DeckType } from "../types";
 
+interface PokerSession {
+  roomCode: string;
+  userName: string;
+  isHost: boolean;
+}
+
 export const CreateRoomPage: React.FC = () => {
   const navigate = useNavigate();
   const { socket } = useSocket();
-  const [, setUserSession] = useLocalStorage("poker-session", null);
+  const [, setUserSession] = useLocalStorage<PokerSession | null>(
+    "poker-session",
+    null
+  );
 
   const [formData, setFormData] = useState({
     hostName: "",
@@ -69,7 +78,7 @@ export const CreateRoomPage: React.FC = () => {
           }
         }
       );
-    } catch (error) {
+    } catch {
       setLoading(false);
       setErrors({ submit: "Failed to create room" });
     }
