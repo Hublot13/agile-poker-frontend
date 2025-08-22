@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Copy,
   Share2,
   Play,
   Eye,
@@ -173,6 +172,14 @@ export const PlanningRoomPage: React.FC = () => {
 
     socket.on("room-updated", (updatedRoom) => {
       setRoom(updatedRoom);
+      if (updatedRoom.newHostName) {
+        addNotification(`${updatedRoom.newHostName} is now the host`);
+      }
+    });
+
+    socket.on("removed", () => {
+      addNotification("You were removed from the room");
+      navigate("/");
     });
 
     return () => {
@@ -183,6 +190,7 @@ export const PlanningRoomPage: React.FC = () => {
       socket.off("votes-revealed");
       socket.off("round-reset");
       socket.off("room-updated");
+      socket.off("removed");
     };
   }, [socket, room]);
 
@@ -265,6 +273,26 @@ export const PlanningRoomPage: React.FC = () => {
       }
     });
     handleStartVoting();
+  };
+
+  const handleMakeHost = (targetSocketId: string) => {
+    if (!socket) return;
+
+    socket.emit("make-host", { targetSocketId }, (response: any) => {
+      if (!response.success) {
+        addNotification("Failed to make host");
+      }
+    });
+  };
+
+  const onRemoveUser = (targetSocketId: string) => {
+    if (!socket) return;
+
+    socket.emit("remove-user", { targetSocketId }, (response: any) => {
+      if (!response.success) {
+        addNotification("Failed to kick user");
+      }
+    });
   };
 
   const copyRoomLink = async () => {
@@ -452,6 +480,8 @@ export const PlanningRoomPage: React.FC = () => {
                   vote={userVotes[user.name]}
                   showVote={showVotes}
                   isCurrentUserHost={isHost}
+                  onMakeHost={handleMakeHost}
+                  onRemoveUser={onRemoveUser}
                 />
               ))}
             </div>

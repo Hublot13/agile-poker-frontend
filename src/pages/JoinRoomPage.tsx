@@ -8,11 +8,22 @@ import { Card } from "../components/Card";
 import { useSocket } from "../contexts/SocketContext";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
+interface PokerSession {
+  roomCode: string;
+  userName: string;
+  isHost: boolean;
+}
+
+
 export const JoinRoomPage: React.FC = () => {
   const navigate = useNavigate();
   const { roomCode: urlRoomCode } = useParams();
   const { socket } = useSocket();
-  const [, setUserSession] = useLocalStorage("poker-session", null);
+ const [, setUserSession] = useLocalStorage<PokerSession | null>(
+    "poker-session",
+    null
+  );
+
 
   const [formData, setFormData] = useState({
     userName: "",
@@ -78,7 +89,7 @@ export const JoinRoomPage: React.FC = () => {
           }
         }
       );
-    } catch (error) {
+    } catch{
       setLoading(false);
       setErrors({ submit: "Failed to join room" });
     }
